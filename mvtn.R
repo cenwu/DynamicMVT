@@ -1,0 +1,392 @@
+
+#  Created by Cen Wu on  0810/0826
+#  Copyright 2010 Michigan State University. All rights reserved.
+
+#  This codes are developed for the following paper
+#  Wu, C., Li, G., Zhu, J. and Cui, Y. (2011) Functional mapping of dynamic traits with robust t-distribution. PLOS ONE, 6(9): e24902 
+#  Simulation of mvtn
+
+rm(list=objects()) # All objects specified will be removed. 
+
+
+cvalue=1e-05  ### EM convergence value
+interval=2  ### linkage scan increment 
+p=9;        ### dimension
+ 
+num=100;
+lamda=matrix(0,num,1) ## QTL position
+LLR=matrix(0,num,51)  ## LR
+nnu=matrix(0,num,1)   ## degrees of freedom
+rrou=matrix(0,num,1)  ## covariance para
+vvar=matrix(0,num,1)  ## variance parapeter 
+k0=matrix(0,5,num)    ## record kchi0
+k1=matrix(0,5,num)    ## record kchi1
+
+   B=matrix(c(1,0.39062,0.0625,0,0,0,0,0,0,
+               0,0.53906,0.65625,0.38281,0.125,0.0078125,0,0,0,
+               0,0.070312,0.28125,0.60938,0.75,0.60938,0.28125,0.070312,0,
+               0,0,0,0.0078125,0.125,0.38281,0.65625,0.53906,0,
+               0,0,0,0,0,0,0.0625,0.39063,1),9,5);
+
+LTL=function(p) {
+    M=matrix(c((1+p^2),-p,0,0,0,0,0,0,0,  -p,(1+p^2),-p,0,0,0,0,0,0, 
+           0,-p,(1+p^2),-p,0,0,0,0,0,  0,0,-p,(1+p^2),-p,0,0,0,0,
+           0,0,0,-p,(1+p^2),-p,0,0,0,  0,0,0,0,-p,(1+p^2),-p,0,0,
+           0,0,0,0,0,-p,(1+p^2),-p,0,  0,0,0,0,0,0,-p,(1+p^2),-p,
+           0,0,0,0,0,0,0,-p,1),9,9);
+    LTL=M;
+}
+
+ fp=function(r_1,r_2,rr){
+               p11=(1-r_1)*(1-r_2)/(1-rr); p12=r_1*r_2/(1-rr);
+               p21 =(1-r_1)*r_2/rr;      p22= r_1*(1-r_2)/rr;
+               fp = matrix(c(p11,p21,p22,p12,p12,p22,p21,p11),4,2) ;}
+
+fra=function(d){ fra=(1-exp(-2*d/100))/2;}
+
+kkchi0=matrix(c(1.146086,6.674319,13.214343,7.345196,7.289898),5,1);
+kkchi1=matrix(c(1.234462,7.708127,10.628384,6.094007,6.293596),5,1);
+u0=B%*%kkchi0;
+u1=B%*%kkchi1;
+
+
+for (ii  in 1:num)      # the permutation loop
+{
+
+### load data ###
+#######################  the Marker information  
+n=100
+a=matrix(0,n,6)
+a[,1]=runif(n)
+
+
+for(i in 1:n)
+{ if(a[i,1]<=0.5) {a[i,1]=-1}else
+  if(a[i,1]>0.5)  {a[i,1]=1}
+}
+
+# 1=AA -1=Aa
+
+for(j in 2:6)
+{      for(i in 1:n)
+    { t=runif(1);
+      if((a[i,(j-1)]==1)&&(t>fra(20))) {a[i,j]=1}else
+      if((a[i,(j-1)]==1)&&(t<=fra(20))) {a[i,j]=-1}else
+      if((a[i,(j-1)]==-1)&&(t<=fra(20))) {a[i,j]=1}else
+      if((a[i,(j-1)]==-1)&&(t>fra(20))) {a[i,j]=-1}
+     }
+}
+
+# (1-exp(-2*20/100))/2
+# (1-exp(-2*8/100))/2
+
+# a=cbind(a[,1:3],matrix(c(rep(0,n)),n,1),a[,4:6]) 
+# a=cbind(a[,1:3],b,a[,4:6]) 
+b=matrix(c(rep(0,n)),n,1);
+
+cc=fp(fra(8),fra(12),fra(20));
+
+j=4;  ## qtl
+ for(i in 1:n)
+    { 
+      t=runif(1);
+      if((a[i,(j-1)]==1)&&(a[i,j]==1)) {b[i,]=as.numeric(t<cc[1,1])-as.numeric(t>=cc[1,1])}else
+      if((a[i,(j-1)]==-1)&&(a[i,j]==-1)) {b[i,]=as.numeric(t<=cc[4,1])-as.numeric(t>cc[4,1])}else
+      if((a[i,(j-1)]==1)&&(a[i,j]==-1)) {b[i,]=as.numeric(t<=cc[2,1])-as.numeric(t>cc[2,1])}else
+      if((a[i,(j-1)]==-1)&&(a[i,j]==1)) {b[i,]=as.numeric(t<=cc[3,1])-as.numeric(t>cc[3,1])}
+      
+     }
+
+ve=9*(u0[4]-u1[4])^2/4;
+ssig=solve(LTL(0.95))*ve/(0.95^6+0.95^4+0.95^2+1);
+
+
+yyr1=matrix(c(rep(0,n*9)),n,9);
+ for(i in 1:n)
+    { if(b[i,]==1)   {yyr1[i,]=rmt(n=1,u1,ssig,3)}else
+      if(b[i,]==-1)  {yyr1[i,]=rmt(n=1,u0,ssig,3)}
+     }
+
+#################################################################
+
+# MM1=read.table("c:/marker2.txt") ### Marker data
+MM1=a; 
+
+
+##  yyr1=read.table("c:/TillerN.txt") ### phenotype data
+## dd=read.table("c:/distance.txt") ### a column vector contains the genetic distance for all chromosomes, starting with 0, for example, (0,5.6,21.3,0,8.7,10.3,8.7,0,1.3,....)
+dd=matrix(c(0,20,40,60,80,100,0,0,0),9,1)
+mp=6     ### a vector contains the number of markers for each chromosome
+
+###   yy1=subset(yyr1,yyr1[,1]!=-1) ### -1 is missing value
+###   MM1=subset(MM1,yyr1[,1]!=-1) ### 
+
+yy1=yyr1;
+chr1=dd[1:mp,1];
+
+d1=sort(unique(c(chr1[2:mp],c((0:(max(chr1)/interval))*interval))));	
+n1=length(d1);
+
+d=d1       # total positions to scan 
+nn=n1; # total number of positions to scan 
+
+### Get the marker ###
+
+# M11=MM1[,1:mp[1]];
+M11=MM1[,1:6];
+
+## cn=cumsum(c(n1,n2,n3,n4,n5,n6,n7,n8,n9,n10,n11,n12))
+cn=n1;
+
+LR=matrix(0,1,nn)  ### matrix to save the LR, chromosome and the position
+par=matrix(0,nn,3) # ppar=[];
+InterID=c(0,0);
+
+# now define some functions 
+
+erf=function(x){erf=2*pnorm(sqrt(2)*x)-1;}
+
+   fr=function(d){ fr=(1-exp(-2*d))/2;}
+
+   fp=function(r_1,r_2,rr){
+               p11=(1-r_1)*(1-r_2)/(1-rr); p12=r_1*r_2/(1-rr);
+               p21 =(1-r_1)*r_2/rr;      p22= r_1*(1-r_2)/rr;
+               fp = matrix(c(p11,p21,p22,p12,p12,p22,p21,p11),4,2) ;}
+
+   ### Function to get the prior probability matrix ###
+            fn_m=function(MM_1,MM_2,x,n)
+         {
+                 mmm=matrix(0,n,2);
+           for ( i in 1:n )
+             {  if(MM_1[i]==1 && MM_2[i]==1)     mmm[i,]=x[1,]
+                else if (MM_1[i]==1 && MM_2[i]==-1)  mmm[i,]=x[2,]
+                else if (MM_1[i]==-1 && MM_2[i]==1)  mmm[i,]=x[3,]
+                else if (MM_1[i]==-1 && MM_2[i]==-1) mmm[i,]=x[4,]
+              }
+           fn_m=mmm;
+         }
+
+
+
+for (ww in 1:nn)   # nn location to scan;  
+{ 
+  chroml=chr1;M_1=M11;      
+      
+      d_1=d[ww];
+      loc1=max(which(chroml<=d_1));
+      if(loc1==length(chroml)) {loc1=loc1-1 ;}
+      # check if still in the same interval 
+       InterID[2]=loc1;
+
+
+      if (InterID[2] != InterID[1])
+  {
+      MMM1=subset(M_1[,loc1:(loc1+1)],M_1[,loc1]!=88 & M_1[,(loc1+1)]!=88) # 88 is missing value
+      MMM1=as.matrix(MMM1);
+      y=subset(yy1,M_1[,loc1]!=88 & M_1[,(loc1+1)]!=88)    
+      y=as.matrix(y);
+      n=max(dim(y));
+      InterID[1]= InterID[2]; 
+      aver=t(c(rep(0,9)));  # 1 by 9 vector
+      for (i in 1:9)
+      {  aver[i]=mean(y[,i]); }
+  
+    mu=t(aver);        # 9 by 1 
+    variance=cov(y); 
+    sig=sqrt(variance[1,1]); ### initial value for SAD(1) sigm2
+    var=sig*sig;
+    # coef=cor(log(y));
+    # rou=sqrt(variance[2,2]/0.5-1);  
+    coef=matrix(0,9,9)
+    coef=cor(y);
+    rou=coef[1,2];  
+    kchi=qr.solve(B,mu)  # 5 by 1 
+    nu=1;          # initial value of degree of freedom 
+
+    # The EM for H0
+    # the EM algorithm under the null hypothesis 
+ 
+ L0 <- c(1,6);
+ tau=matrix(0,n,1) # n by 1 vector
+  flag=1;
+ em0=matrix(0,500,1);
+ 
+         #************************
+         #         M-step        *
+         #************************
+         ### update kchi
+         t1=matrix(c(rep(0,5)),5,1);
+         t2=matrix(c(rep(0,25)),5,5);
+         
+         for(i in 1:n){
+         qq=matrix(c(rep(0,9)),9,1);    ########  replace yy1 by y 
+         for (j in 1:9)  { qq[j]=(y[i,j]); }
+         t1=t1+t(B)%*%LTL(rou)%*%qq;
+         t2=t2+t(B)%*%LTL(rou)%*%B;
+         }
+         kchi=qr.solve(t2,t1);  # 5 by 1 vector 
+  
+         ### update rou
+         ss1=0; ss2=0;
+         for(i in 1:n){ 
+         qq=matrix(c(rep(0,9)),9,1);    ########  replace yy1 by y 
+         for (j in 1:9)  { qq[j]=(y[i,j]); }
+         s1=0;s2=0;
+            for(s in 1:(p-1)){
+             s1=s1+(qq[s]-matrix(B[s,],1,5)%*%kchi)*(qq[s+1]-matrix(B[(s+1),],1,5)%*%kchi);
+             s2=s2+(qq[s]-matrix(B[s,],1,5)%*%kchi)^2;
+             }
+         ss1=ss1+s1;ss2=ss2+s2;       
+         }
+         rou=ss1/ss2;
+         
+ 
+         ### update var
+         t3=0;
+         temp=matrix(0,n,1) # n by 1 vector
+         for(i in 1:n){
+         qq=matrix(c(rep(0,9)),9,1);    ########  replace yy1 by y 
+         for (j in 1:9)  { qq[j]=(y[i,j]); }
+         temp[i]=t(qq-B%*%kchi)%*%LTL(rou)%*%(qq-B%*%kchi);
+         t3=t3+temp[i];
+          }
+         mah=as.numeric(t3);  # the corrected Mahalanobis distance
+         var=mah/(n*p);
+         
+         ### calculate the log Likelihood function
+
+         l0r= -n*p/2*log(pi*2*var)-0.5*sum(temp)/var;
+         L0[2] <- l0r
+         #cat(llr,"\n")
+
+ }
+
+####################################################################
+     ###   The EM for Ha
+     ###   the EM algorithm under the alternative hypothesis 
+     
+       kchi0=kchi;
+     kchi1=qr.solve(B,(B%*%kchi0-0.1))  # 5 by 1 
+     s=fr((chroml[loc1+1]-chroml[loc1])/100);
+     s1=fr((d_1-chroml[loc1])/100);
+     s2=fr((chroml[loc1+1]-d_1)/100);
+     pp=fp(s1,s2,s);
+     sphi=fn_m(MMM1[,1],MMM1[,2],pp,n); ### prior distribution
+     
+     L1 <- c(1,6);
+     c0=matrix(0,n,1) # n by 1 vector
+     c1=matrix(0,n,1) # n by 1 vector
+        flag=1;
+     em1=matrix(0,500,1);
+
+ while(abs(L1[2]-L1[1])>cvalue) 
+     {
+         L1[1] <- L1[2];
+         #************************
+         #        E-step         *
+         #************************
+         
+         for(i in 1:n){
+         qq=matrix(c(rep(0,9)),9,1);    ########  replace yy1 by y 
+         for (j in 1:9)  { qq[j]=(y[i,j]); }
+         tt0=-0.5*t((qq-B%*%kchi0))%*%LTL(rou)%*%(qq-B%*%kchi0)/var ;  # kchi0 5 by 1
+         
+         tt1=-0.5*t((qq-B%*%kchi1))%*%LTL(rou)%*%(qq-B%*%kchi1)/var ;  # kchi1 5 by 1
+        
+         c1[i]=sphi[i,1]*exp(tt1)/(sphi[i,1]*exp(tt1)+sphi[i,2]*exp(tt0))
+         c0[i]=1-c1[i];
+ 
+          }
+ 
+         #************************
+         #         M-step        *
+         #************************
+         ### update kchi0 and kchi1 
+         t01=matrix(c(rep(0,5)),5,1);
+         t02=matrix(c(rep(0,25)),5,5);
+         t11=matrix(c(rep(0,5)),5,1);
+         t12=matrix(c(rep(0,25)),5,5);
+         
+         for(i in 1:n){
+         qq=matrix(c(rep(0,9)),9,1);    ########  replace yy1 by y 
+         for (j in 1:9)  { qq[j]=(y[i,j]); }
+         t01=t01+c0[i]*t(B)%*%LTL(rou)%*%qq;
+         t02=t02+c0[i]*t(B)%*%LTL(rou)%*%B;
+         t11=t11+c1[i]*t(B)%*%LTL(rou)%*%qq;
+         t12=t12+c1[i]*t(B)%*%LTL(rou)%*%B;
+         }
+         kchi0=qr.solve(t02,t01);  # 5 by 1 vector 
+         kchi1=qr.solve(t12,t11);  # 5 by 1 vector 
+ 
+         ### update rou
+         ss1=0; ss2=0;
+         for(i in 1:n){ 
+         qq=matrix(c(rep(0,9)),9,1);    ########  replace yy1 by y 
+         for (j in 1:9)  { qq[j]=(y[i,j]); }
+         s11=0;s12=0;s21=0;s22=0;
+            for(s in 1:(p-1)){
+             s11=s11+(qq[s]-matrix(B[s,],1,5)%*%kchi0)*(qq[s+1]-matrix(B[(s+1),],1,5)%*%kchi0);
+             s12=s12+(qq[s]-matrix(B[s,],1,5)%*%kchi1)*(qq[s+1]-matrix(B[(s+1),],1,5)%*%kchi1);
+             s21=s21+(qq[s]-matrix(B[s,],1,5)%*%kchi0)^2;
+             s22=s22+(qq[s]-matrix(B[s,],1,5)%*%kchi1)^2;
+                              }
+         ss1=ss1+s11*c0[i]+s12*c1[i];
+         ss2=ss2+s21*c0[i]+s22*c1[i];       
+         }
+         rou=ss1/ss2;
+         
+             
+         ### update var
+         t4=0;t5=0;
+         tt4=0;tt5=0;
+         temp0=matrix(0,n,1) # n by 1 vector
+         temp1=matrix(0,n,1) # n by 1 vector
+         for(i in 1:n){
+         qq=matrix(c(rep(0,9)),9,1);    ########  replace yy1 by y 
+         for (j in 1:9)  { qq[j]=(y[i,j]); }
+         temp0[i]=t((qq-B%*%kchi0))%*%LTL(rou)%*%(qq-B%*%kchi0) ; 
+         temp1[i]=t((qq-B%*%kchi1))%*%LTL(rou)%*%(qq-B%*%kchi1) ;  
+         t4=t4+c0[i]*temp0[i];
+         t5=t5+c1[i]*temp1[i];
+           }
+         mah=as.numeric(t4)+as.numeric(t5);  # the corrected Mahalanobis distance
+         var=mah/((sum(c0)+sum(c1))*p);      # sum(c0)+sum(c1)=n
+          
+         ### calculate the log Likelihood function
+         yyy=matrix(0,n,1) # n by 1 vector 
+         for(i in 1:n){
+           yyy[i]=log(sphi[i,1]*exp(-0.5*temp1[i]/var)+sphi[i,2]*exp((-0.5*temp0[i]/var)));
+         }
+         llr=-0.5*n*p*log(2*pi*var)+sum(yyy);
+         L1[2] <- llr
+         em1[flag]=llr;
+         flag=flag+1;
+         #cat(llr,"\n")
+     } 
+     LR[,ww]=-2*(l0r-llr);  # l0r and llr are log likelihood under Ho and Ha respectively
+     par[ww,]=rbind(l0r,llr,(-2*(l0r-llr)));
+
+}
+      lamda[ii]=d1[which.max(LR)];
+      # nnu[ii]=nu;       ## degrees of freedom
+      LLR[ii,]=LR;
+      rrou[ii]=rou ;    ## covariance para
+      vvar[ii]=var ;    ## covariance para
+      k0[,ii]=kchi0 ;   ## record kchi0
+      k1[,ii]=kchi1;    ## record kchi1
+ }  
+#############################################################
+# write.csv(LRperm,file="\\...\\0523.csv")
+# check the results saved in  chrom12.xls
+# fix(par)   
+
+# vve=matrix(c(rep(0,num)),num,1);
+# for(i in 1:num)
+#    { uu0=B%*%k0[,i]; uu1=B%*%k1[,i];
+#      vve[i]=9*(uu0[4]-uu1[4])^2/4;
+#     }
+
+
+
+
+
