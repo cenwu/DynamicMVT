@@ -3,7 +3,7 @@ Codes of a robust multivariate t distribution mapping framework for QTL identifi
 
 # Algorithm
 Robust (multivariate t) EM algorithms for mixture models.
-Similar algorithms based on multivariate Laplacian distributions have also been developed. 
+Similar algorithms based on multivariate Laplacian distributions have also been developed recently. 
 
 # Publication
 Wu, C., Li, G., Zhu, J. and Cui, Y. (2011) Functional mapping of dynamic traits with robust t-distribution. PLOS ONE, 6(9): e24902 
