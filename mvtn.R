@@ -129,7 +129,7 @@ n1=length(d1);
 
 d=d1       # total positions to scan 
 nn=n1; # total number of positions to scan 
-
+ 
 ### Get the marker ###
 
 # M11=MM1[,1:mp[1]];
