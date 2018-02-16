@@ -5,9 +5,9 @@
 
 #  This codes are developed for the following paper
 #  Wu, C., Li, G., Zhu, J. and Cui, Y. (2011) Functional mapping of dynamic traits with robust t-distribution. PLOS ONE, 6(9): e24902 
-#  Simulation of mvtt 
+#  Simulation of mvtt  
 
-setwd("\\\\sttnas/StudentReds/wucen/Desktop/TFunMapp/simu")
+
 rm(list=objects()) # All objects specified will be removed. 
 
 cvalue=1e-05  ### EM convergence value
